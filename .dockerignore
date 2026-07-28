@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.vscode
+**/.DS_Store
+**/node_modules
+**/dist
+**/build
+**/.gradle
+**/.env
+**/.env.*
+!**/.env.production.example
