@@ -169,6 +169,7 @@ function NaverMap({
 
     const sourcePoints = routePoints.length > 1 ? routePoints : [start, end]
     const routeCoordinates = sourcePoints.map(point => new maps.LatLng(point.latitude, point.longitude))
+    routeCoordinates.forEach(coordinate => bounds.extend(coordinate))
 
     overlays.push(new maps.Polyline({
       map,
