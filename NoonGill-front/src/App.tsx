@@ -23,6 +23,7 @@ function RoutePage() {
   const [mode, setMode] = useState<RouteType>('RAIN_FREE')
   const [route, setRoute] = useState<RouteResult>()
   const [error, setError] = useState('')
+  const [mapRevision, setMapRevision] = useState(0)
 
   useEffect(() => {
     const refreshBuildings = () => {
@@ -30,6 +31,7 @@ function RoutePage() {
         setPlaces(values)
         setStart(current => values.some(place => place.id === current) ? current : (values[1]?.id ?? values[0]?.id))
         setEnd(current => values.some(place => place.id === current) ? current : (values[2]?.id ?? values[1]?.id))
+        setMapRevision(current => current + 1)
       }).catch(() => setError('백엔드에 연결할 수 없습니다. Spring Boot 실행 상태를 확인해 주세요.'))
     }
     const onVisibilityChange = () => { if (document.visibilityState === 'visible') refreshBuildings() }
@@ -53,7 +55,7 @@ function RoutePage() {
     try { setError(''); setRoute((await searchRoutes(start, end, [mode]))[0]) }
     catch { setError('이 조건으로 이동 가능한 경로가 없습니다.') }
   }
-  useEffect(() => { if (start && end) void findRoute() }, [start, end, mode])
+  useEffect(() => { if (start && end) void findRoute() }, [start, end, mode, mapRevision])
   if (!startPlace || !endPlace) return <div className="loading-state">{error || '캠퍼스 데이터를 불러오는 중입니다…'}</div>
 
   return <div className="app-shell">
