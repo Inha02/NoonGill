@@ -94,13 +94,22 @@ jobs:
 
       - name: Upload release
         run: |
-          scp -i ~/.ssh/noongill_deploy \
+          scp \
+            -i ~/.ssh/noongill_deploy \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=20 \
+            -o ConnectTimeout=15 \
             /tmp/noongill-${GITHUB_SHA}.tar.gz \
             "${EC2_USER}@${EC2_HOST}:/tmp/noongill-${GITHUB_SHA}.tar.gz"
 
       - name: Deploy on EC2
         run: |
-          ssh -i ~/.ssh/noongill_deploy "${EC2_USER}@${EC2_HOST}" \
+          ssh \
+            -i ~/.ssh/noongill_deploy \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=20 \
+            -o ConnectTimeout=15 \
+            "${EC2_USER}@${EC2_HOST}" \
             "RELEASE_SHA='${GITHUB_SHA}' bash -s" <<'REMOTE'
           set -euo pipefail
           release_dir="/opt/noongill/releases/${RELEASE_SHA}"
