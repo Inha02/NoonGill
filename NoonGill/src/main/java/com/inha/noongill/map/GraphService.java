@@ -82,7 +82,8 @@ public class GraphService {
             totalSeconds += duration(edge);
             if (edge.isIndoor()) indoorDistance += edge.getDistanceMeters();
             segments.add(new RouteSegmentResponse(edge.getId(), from, to,
-                    instruction(edge, snapshot.nodes().get(to)), edge.getDistanceMeters(), duration(edge),
+                    instruction(edge, snapshot.nodes().get(from), snapshot.nodes().get(to)),
+                    edge.getDistanceMeters(), duration(edge),
                     edge.getPathType(), edge.isIndoor()));
         }
         return new RouteResponse(type, totalDistance, totalSeconds,
@@ -126,12 +127,12 @@ public class GraphService {
                 node.getFloor(), node.getBuilding() == null ? null : node.getBuilding().getId(),
                 node.getNodeType(), node.getIndoorX(), node.getIndoorY());
     }
-    private String instruction(RouteEdge edge, RouteNode destination) {
+    private String instruction(RouteEdge edge, RouteNode source, RouteNode destination) {
         return switch (edge.getPathType()) {
             case STAIRS -> destination.getFloor() + "층으로 계단을 이용하세요.";
             case ELEVATOR -> destination.getFloor() + "층으로 엘리베이터를 이용하세요.";
             case BUILDING_CONNECTION -> "건물 연결통로를 이용하세요.";
-            case CORRIDOR -> "복도를 따라 이동하세요.";
+            case CORRIDOR -> source.getName() + " → " + destination.getName();
             case COVERED_PATH -> "지붕이 있는 통로를 따라 이동하세요.";
             case ENTRANCE -> destination.getName() + "(으)로 들어가세요.";
             default -> destination.getName() + " 방향으로 이동하세요.";
