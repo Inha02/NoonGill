@@ -98,17 +98,25 @@ public class GraphService {
                 .orElseThrow(() -> new IllegalStateException("경로 노드가 없습니다."));
     }
 
-    public Set<Long> buildingNodes(long buildingId) {
+    public Set<Long> buildingNodes(long buildingId, Integer floor) {
         Set<Long> ids = new HashSet<>();
         for (RouteNode node : graph.get().nodes().values()) {
-            boolean routablePortal = node.getNodeType() == RouteNode.NodeType.ENTRANCE
-                    || node.getNodeType() == RouteNode.NodeType.DOOR
-                    || node.getNodeType() == RouteNode.NodeType.CONNECTOR;
-            if (routablePortal && node.getBuilding() != null && node.getBuilding().getId().equals(buildingId)) {
+            boolean sameBuilding = node.getBuilding() != null
+                    && node.getBuilding().getId().equals(buildingId);
+            boolean requestedFloor = floor == null
+                    ? node.getNodeType() == RouteNode.NodeType.ENTRANCE
+                        || node.getNodeType() == RouteNode.NodeType.DOOR
+                        || node.getNodeType() == RouteNode.NodeType.CONNECTOR
+                    : floor.equals(node.getFloor());
+            if (sameBuilding && requestedFloor) {
                 ids.add(node.getId());
             }
         }
-        if (ids.isEmpty()) throw new IllegalArgumentException("건물과 연결된 경로 노드가 없습니다.");
+        if (ids.isEmpty()) {
+            throw new IllegalArgumentException(floor == null
+                    ? "건물과 연결된 경로 노드가 없습니다."
+                    : "선택한 건물 층에 경로 노드가 없습니다.");
+        }
         return ids;
     }
 

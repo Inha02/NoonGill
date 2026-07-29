@@ -39,7 +39,7 @@ export default function AdminMapEditor() {
     if (modeRef.current === 'ADD_BUILDING') {
       const id = -Date.now()
       setData(value => ({ ...value, buildings: [...value.buildings, {
-        id, name: '새 건물', detail: '건물 설명', latitude, longitude,
+        id, name: '새 건물', detail: '건물 설명', latitude, longitude, floorCount: 1,
       }] }))
       setSelectedBuildingId(id)
       setSelectedEdgeId(undefined)
@@ -250,6 +250,8 @@ export default function AdminMapEditor() {
             onChange={e => updateBuilding({ name: e.target.value })}/></label>
           <label>설명<input value={selectedBuilding.detail}
             onChange={e => updateBuilding({ detail: e.target.value })}/></label>
+          <label>총 층수<input type="number" min="1" value={selectedBuilding.floorCount}
+            onChange={e => updateBuilding({ floorCount: Math.max(1, Number(e.target.value) || 1) })}/></label>
           <small>{selectedBuilding.latitude.toFixed(7)}, {selectedBuilding.longitude.toFixed(7)}</small>
         </div> : selectedNode ? <div className="property-form">
           <label>이름<input value={selectedNode.name} onChange={e => updateNode({ name: e.target.value })}/></label>

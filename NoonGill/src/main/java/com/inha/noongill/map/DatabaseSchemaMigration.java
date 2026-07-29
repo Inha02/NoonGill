@@ -16,6 +16,10 @@ public class DatabaseSchemaMigration implements CommandLineRunner {
     @Override
     public void run(String... args) {
         jdbcTemplate.execute("""
+                ALTER TABLE buildings
+                ADD COLUMN IF NOT EXISTS floor_count INTEGER NOT NULL DEFAULT 1
+                """);
+        jdbcTemplate.execute("""
                 ALTER TABLE route_nodes
                 DROP CONSTRAINT IF EXISTS route_nodes_node_type_check
                 """);

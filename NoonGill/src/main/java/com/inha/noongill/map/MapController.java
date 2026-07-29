@@ -42,12 +42,14 @@ public class MapController {
         return switch (location.type()) {
             case POINT -> graphService.nearest(
                     Objects.requireNonNull(location.latitude()), Objects.requireNonNull(location.longitude()), location.floor());
-            case BUILDING -> graphService.buildingNodes(Objects.requireNonNull(location.buildingId()));
+            case BUILDING -> graphService.buildingNodes(
+                    Objects.requireNonNull(location.buildingId()), location.floor());
             case NODE -> Set.of(Objects.requireNonNull(location.nodeId()));
         };
     }
     private BuildingResponse building(Building value) {
-        return new BuildingResponse(value.getId(), value.getName(), value.getDetail(), value.getLatitude(), value.getLongitude());
+        return new BuildingResponse(value.getId(), value.getName(), value.getDetail(),
+                value.getLatitude(), value.getLongitude(), value.getFloorCount());
     }
     private NodeResponse node(RouteNode value) {
         return new NodeResponse(value.getId(), value.getName(), value.getLatitude(), value.getLongitude(), value.getFloor(),
