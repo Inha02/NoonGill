@@ -108,7 +108,19 @@ jobs:
           sudo tar -xzf "/tmp/noongill-${RELEASE_SHA}.tar.gz" -C "$release_dir"
           sudo ln -sfn "$release_dir" /opt/noongill/current
           cd /opt/noongill/current
+
+          # Reuse the currently running Compose project so the existing
+          # PostgreSQL volume is preserved and port 80 is not double-bound.
+          compose_project="$(
+            sudo docker ps \
+              --filter "publish=80" \
+              --format '{{.Label "com.docker.compose.project"}}' \
+              | awk 'NF { print; exit }'
+          )"
+          compose_project="${compose_project:-noongill}"
+
           sudo docker compose \
+            -p "$compose_project" \
             --env-file /opt/noongill/shared/.env.production \
             -f compose.prod.yml \
             up -d --build --remove-orphans
