@@ -57,6 +57,9 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     environment: production
+    env:
+      EC2_HOST: 52.78.133.149
+      EC2_USER: ubuntu
     concurrency:
       group: production
       cancel-in-progress: false
@@ -67,12 +70,18 @@ jobs:
       - name: Prepare SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           install -m 700 -d ~/.ssh
           install -m 600 /dev/null ~/.ssh/noongill_deploy
           printf '%s' "$SSH_PRIVATE_KEY" > ~/.ssh/noongill_deploy
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          for attempt in 1 2 3; do
+            ssh-keyscan -T 10 -H "$EC2_HOST" >> ~/.ssh/known_hosts && break
+            if [ "$attempt" = 3 ]; then
+              echo "EC2 SSH host key scan failed: $EC2_HOST:22"
+              exit 1
+            fi
+            sleep 2
+          done
 
       - name: Package source
         run: |
@@ -84,18 +93,12 @@ jobs:
             -czf /tmp/noongill-${GITHUB_SHA}.tar.gz .
 
       - name: Upload release
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           scp -i ~/.ssh/noongill_deploy \
             /tmp/noongill-${GITHUB_SHA}.tar.gz \
             "${EC2_USER}@${EC2_HOST}:/tmp/noongill-${GITHUB_SHA}.tar.gz"
 
       - name: Deploy on EC2
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
         run: |
           ssh -i ~/.ssh/noongill_deploy "${EC2_USER}@${EC2_HOST}" \
             "RELEASE_SHA='${GITHUB_SHA}' bash -s" <<'REMOTE'
