@@ -26,6 +26,7 @@ public class AdminMapService {
                 building.setDetail(change.detail());
                 building.setLatitude(change.latitude());
                 building.setLongitude(change.longitude());
+                building.setFloorCount(Math.max(1, change.floorCount()));
                 buildingRepository.save(building);
                 if (change.id() != null) resolvedBuildings.put(change.id(), building);
                 resolvedBuildings.put(building.getId(), building);

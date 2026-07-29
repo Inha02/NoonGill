@@ -14,10 +14,16 @@ export type RouteResult = {
   indoorRatio: number; points: RoutePoint[]; segments: RouteSegment[]
 }
 
-export async function searchRoutes(startBuildingId: number, destinationBuildingId: number, routeTypes: RouteType[]) {
+export async function searchRoutes(
+  startBuildingId: number,
+  startFloor: number,
+  destinationBuildingId: number,
+  destinationFloor: number,
+  routeTypes: RouteType[],
+) {
   return (await axios.post<RouteResult[]>('/api/routes/search', {
-    start: { type: 'BUILDING', buildingId: startBuildingId },
-    destination: { type: 'BUILDING', buildingId: destinationBuildingId },
+    start: { type: 'BUILDING', buildingId: startBuildingId, floor: startFloor },
+    destination: { type: 'BUILDING', buildingId: destinationBuildingId, floor: destinationFloor },
     routeTypes,
   })).data
 }

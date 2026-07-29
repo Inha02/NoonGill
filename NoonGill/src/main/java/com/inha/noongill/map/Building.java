@@ -14,6 +14,8 @@ public class Building {
     private String detail;
     private double latitude;
     private double longitude;
+    @Column(nullable = false, columnDefinition = "integer default 1")
+    private int floorCount = 1;
 
     public Building(String name, String detail, double latitude, double longitude) {
         this.name = name;

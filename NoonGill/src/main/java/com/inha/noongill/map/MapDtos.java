@@ -9,7 +9,8 @@ public final class MapDtos {
     public enum RouteType { FASTEST, RAIN_FREE, ACCESSIBLE }
     public enum LocationType { POINT, BUILDING, NODE }
 
-    public record BuildingResponse(long id, String name, String detail, double latitude, double longitude) {}
+    public record BuildingResponse(long id, String name, String detail, double latitude, double longitude,
+                                   int floorCount) {}
     public record NodeResponse(long id, String name, double latitude, double longitude, Integer floor,
                                RouteNode.NodeType nodeType, Long buildingId, Double indoorX, Double indoorY) {}
     public record EdgeResponse(long id, long startNodeId, long endNodeId, RouteEdge.PathType pathType,
@@ -37,7 +38,7 @@ public final class MapDtos {
                              Integer floor, @NotNull RouteNode.NodeType nodeType, Long buildingId,
                              Double indoorX, Double indoorY) {}
     public record BuildingChange(Long id, @NotBlank String name, String detail,
-                                 double latitude, double longitude) {}
+                                 double latitude, double longitude, @Min(1) int floorCount) {}
     public record EdgeChange(Long id, @NotNull Long startNodeId, @NotNull Long endNodeId,
                              @NotNull RouteEdge.PathType pathType, @PositiveOrZero double distanceMeters,
                              @PositiveOrZero double durationSeconds, boolean indoor,
