@@ -92,6 +92,7 @@ export default function AdminMapEditor() {
       distanceMeters: Math.round(distance), durationSeconds: Math.round(distance / 1.3),
       indoor: sameBuilding, rainExposure: sameBuilding ? 0 : 1,
       stairCount: 0, wheelchairAccessible: true, bidirectional: true,
+      connectionFloors: [],
     }
     setData(current => ({ ...current, edges: [...current.edges, edge] }))
     selectedRef.current = []
@@ -144,6 +145,17 @@ export default function AdminMapEditor() {
   const selectedNode = data.nodes.find(node => node.id === selected[0])
   const selectedBuilding = data.buildings.find(building => building.id === selectedBuildingId)
   const selectedEdge = data.edges.find(edge => edge.id === selectedEdgeId)
+  const selectedEdgeStart = selectedEdge
+    ? data.nodes.find(node => node.id === selectedEdge.startNodeId) : undefined
+  const selectedEdgeEnd = selectedEdge
+    ? data.nodes.find(node => node.id === selectedEdge.endNodeId) : undefined
+  const isConnectorEdge = selectedEdgeStart?.nodeType === 'CONNECTOR'
+    && selectedEdgeEnd?.nodeType === 'CONNECTOR'
+  const connectionFloorLimit = isConnectorEdge
+    ? Math.min(
+      data.buildings.find(building => building.id === selectedEdgeStart?.buildingId)?.floorCount ?? 1,
+      data.buildings.find(building => building.id === selectedEdgeEnd?.buildingId)?.floorCount ?? 1,
+    ) : 0
   const updateNode = (patch: Partial<MapNode>) => {
     if (!selectedNode) return
     setData(value => ({ ...value, nodes: value.nodes.map(node => node.id === selectedNode.id ? { ...node, ...patch } : node) }))
@@ -223,6 +235,7 @@ export default function AdminMapEditor() {
       <section className="admin-map"><NaverMap places={mapPlaces} start={fallback} end={fallback}
         buildingPlaces={buildingPlaces} selectedBuildingId={selectedBuildingId}
         graphNodes={visibleNodes} graphEdges={visibleEdges}
+        compactMarkers
         onMapClick={addNode} onPlaceClick={selectNode}
         onBuildingClick={selectBuilding} /></section>
       <aside className="admin-panel">
@@ -278,6 +291,19 @@ export default function AdminMapEditor() {
             onChange={e => updateEdge({ wheelchairAccessible: e.target.checked })}/> 휠체어 통행 가능</label>
           <label className="check-field"><input type="checkbox" checked={selectedEdge.bidirectional}
             onChange={e => updateEdge({ bidirectional: e.target.checked })}/> 양방향 통행</label>
+          {isConnectorEdge && <fieldset className="connection-floor-field">
+            <legend>연결되는 층</legend>
+            <div>{Array.from({ length: connectionFloorLimit }, (_, index) => index + 1).map(floor =>
+              <label key={floor}><input type="checkbox"
+                checked={(selectedEdge.connectionFloors ?? []).includes(floor)}
+                onChange={e => {
+                  const floors = selectedEdge.connectionFloors ?? []
+                  updateEdge({ connectionFloors: e.target.checked
+                    ? [...floors, floor].sort((a, b) => a - b)
+                    : floors.filter(value => value !== floor) })
+                }}/>{floor}층</label>)}</div>
+            <small>선택한 각 층에서 두 건물의 연결통로를 이용할 수 있습니다.</small>
+          </fieldset>}
           <p className="field-help">같은 건물의 Node끼리 연결된 Edge는 저장할 때 자동으로 실내 처리됩니다.</p>
         </div> : selectedBuilding ? <div className="property-form">
           <h3>건물 속성</h3>
@@ -328,7 +354,7 @@ export default function AdminMapEditor() {
         <div className="edge-list">{data.edges.map(edge => <div
           className={selectedEdgeId === edge.id ? 'active' : ''} key={edge.id}
           onClick={() => { setSelectedEdgeId(edge.id); setSelected([]); setSelectedBuildingId(undefined) }}>
-          <span>{edge.startNodeId} → {edge.endNodeId}</span><b>{edge.pathType} · {Math.round(edge.distanceMeters)}m</b>
+          <span>{edge.startNodeId} → {edge.endNodeId}</span><b>{edge.pathType} · {Math.round(edge.distanceMeters)}m{edge.connectionFloors?.length ? ` · ${edge.connectionFloors.join(', ')}층` : ''}</b>
           <button onClick={event => {
             event.stopPropagation()
             setData(v => ({...v, edges: v.edges.filter(e => e.id !== edge.id)}))

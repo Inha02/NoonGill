@@ -17,7 +17,7 @@ public final class MapDtos {
     public record EdgeResponse(long id, long startNodeId, long endNodeId, RouteEdge.PathType pathType,
                                double distanceMeters, double durationSeconds, boolean indoor,
                                double rainExposure, int stairCount, boolean wheelchairAccessible,
-                               boolean bidirectional) {}
+                               boolean bidirectional, List<Integer> connectionFloors) {}
     public record MapDataResponse(List<BuildingResponse> buildings, List<NodeResponse> nodes,
                                   List<EdgeResponse> edges) {}
     public record RouteLocationRequest(@NotNull LocationType type, Double latitude, Double longitude,
@@ -45,7 +45,7 @@ public final class MapDtos {
                              @PositiveOrZero double durationSeconds, boolean indoor,
                              @DecimalMin("0.0") @DecimalMax("1.0") double rainExposure,
                              @PositiveOrZero int stairCount, boolean wheelchairAccessible,
-                             boolean bidirectional) {}
+                             boolean bidirectional, List<@Positive Integer> connectionFloors) {}
     public record MapChangesRequest(List<@Valid BuildingChange> buildings,
                                     List<@Valid NodeChange> nodes, List<@Valid EdgeChange> edges,
                                     List<Long> deletedBuildingIds, List<Long> deletedNodeIds,

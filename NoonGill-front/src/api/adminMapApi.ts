@@ -10,6 +10,7 @@ export type MapEdge = {
   id: number; startNodeId: number; endNodeId: number; pathType: string
   distanceMeters: number; durationSeconds: number; indoor: boolean; rainExposure: number
   stairCount: number; wheelchairAccessible: boolean; bidirectional: boolean
+  connectionFloors: number[]
 }
 export type MapData = { buildings: Building[]; nodes: MapNode[]; edges: MapEdge[] }
 

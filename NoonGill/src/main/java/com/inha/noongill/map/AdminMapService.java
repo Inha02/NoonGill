@@ -82,6 +82,17 @@ public class AdminMapService {
                 edge.setStairCount(change.stairCount());
                 edge.setWheelchairAccessible(change.wheelchairAccessible());
                 edge.setBidirectional(change.bidirectional());
+                boolean connectionNodes = edge.getStartNode().getNodeType() == RouteNode.NodeType.CONNECTOR
+                        && edge.getEndNode().getNodeType() == RouteNode.NodeType.CONNECTOR;
+                edge.setConnectionFloors(connectionNodes
+                        ? serializeFloors(change.connectionFloors())
+                        : "");
+                if (connectionNodes && change.connectionFloors() != null
+                        && !change.connectionFloors().isEmpty()) {
+                    edge.setPathType(RouteEdge.PathType.BUILDING_CONNECTION);
+                    edge.setIndoor(true);
+                    edge.setRainExposure(0);
+                }
                 edge.setActive(true);
                 edgeRepository.save(edge);
             }
@@ -93,6 +104,17 @@ public class AdminMapService {
             buildingRepository.flush();
         }
         graphService.reload();
+    }
+
+    private String serializeFloors(List<Integer> floors) {
+        if (floors == null) return "";
+        return floors.stream()
+                .filter(Objects::nonNull)
+                .filter(floor -> floor > 0)
+                .distinct()
+                .sorted()
+                .map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(","));
     }
 
     private RouteNode resolveNode(long id, Map<Long, RouteNode> resolved) {

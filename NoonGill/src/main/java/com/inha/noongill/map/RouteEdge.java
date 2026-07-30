@@ -25,6 +25,8 @@ public class RouteEdge {
     private boolean wheelchairAccessible = true;
     private boolean bidirectional = true;
     private boolean active = true;
+    @Column(length = 500)
+    private String connectionFloors = "";
 
     public RouteEdge(RouteNode startNode, RouteNode endNode, PathType pathType, double distanceMeters,
                      double durationSeconds, boolean indoor, double rainExposure, int stairCount,

@@ -70,6 +70,17 @@ public class MapController {
     private EdgeResponse edge(RouteEdge value) {
         return new EdgeResponse(value.getId(), value.getStartNode().getId(), value.getEndNode().getId(),
                 value.getPathType(), value.getDistanceMeters(), value.getDurationSeconds(), value.isIndoor(),
-                value.getRainExposure(), value.getStairCount(), value.isWheelchairAccessible(), value.isBidirectional());
+                value.getRainExposure(), value.getStairCount(), value.isWheelchairAccessible(),
+                value.isBidirectional(), parseFloors(value.getConnectionFloors()));
+    }
+    private List<Integer> parseFloors(String value) {
+        if (value == null || value.isBlank()) return List.of();
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(part -> !part.isEmpty())
+                .map(Integer::parseInt)
+                .distinct()
+                .sorted()
+                .toList();
     }
 }

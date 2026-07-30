@@ -100,10 +100,10 @@ function RoutePage() {
   if (!startPlace || !endPlace) return <div className="loading-state">{error || '캠퍼스 데이터를 불러오는 중입니다…'}</div>
 
   return <div className="app-shell">
-    <header className="topbar"><a className="brand" href="/"><span className="brand-mark"><img src="/noongill-logo-white.png" alt="눈길 로고" /></span><span><strong>눈길</strong><small>숙명여대 지름길</small></span></a>
+    <header className="topbar"><a className="brand" href="/"><span className="brand-mark"><img src="/noongill-path-logo.png" alt="눈길 로고" /></span><span><strong>눈길</strong><small>숙명여대 지름길</small></span></a>
       <nav><a className="active" href="#route">길찾기</a><a href="#places" onClick={()=>setShowAllPins(true)}>장소</a></nav></header>
     <main>
-      <section className="route-panel" id="route"><div className="route-panel-heading"><div><span className="eyebrow">CAMPUS ROUTE</span><h1>어디로 갈까요?</h1></div></div>
+      <section className="route-panel" id="route"><div className="route-panel-heading"><div><span className="eyebrow">Sookmyung&apos;s Way</span><h1>어디로 갈까요?</h1></div></div>
         <div className="route-controls"><div className="place-fields">
           <label><span className="dot start-dot"/><span><small>출발</small><span className="location-selects">
             <select aria-label="출발 건물" value={start} onChange={e=>{setStart(Number(e.target.value));setStartFloor(1)}}>{places.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select>

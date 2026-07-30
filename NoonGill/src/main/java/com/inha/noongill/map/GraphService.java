@@ -42,7 +42,12 @@ public class GraphService {
             Map<Long, RouteNode> nodes,
             Map<Long, RouteEdge> edges,
             Map<Long, List<Arc>> adjacency) {
+        List<RouteEdge> configuredConnections = edges.values().stream()
+                .filter(edge -> edge.getConnectionFloors() != null
+                        && !edge.getConnectionFloors().isBlank())
+                .toList();
         Map<Long, List<RouteNode>> nodesByBuilding = new HashMap<>();
+        Map<Long, Map<Integer, RouteNode>> virtualNodesByBuilding = new HashMap<>();
         nodes.values().stream()
                 .filter(node -> node.getBuilding() != null && node.getFloor() != null)
                 .forEach(node -> nodesByBuilding
@@ -55,6 +60,10 @@ public class GraphService {
             buildingNodes.stream()
                     .filter(RouteNode::isVirtualNode)
                     .forEach(node -> virtualByFloor.put(node.getFloor(), node));
+            if (!buildingNodes.isEmpty()) {
+                virtualNodesByBuilding.put(
+                        buildingNodes.getFirst().getBuilding().getId(), virtualByFloor);
+            }
 
             List<RouteNode> virtualFloors = new ArrayList<>(virtualByFloor.values());
             for (int i = 1; i < virtualFloors.size(); i++) {
@@ -76,6 +85,44 @@ public class GraphService {
                 addGraphEdge(edges, adjacency, edge);
             }
         }
+
+        for (RouteEdge configured : configuredConnections) {
+            RouteNode start = configured.getStartNode();
+            RouteNode end = configured.getEndNode();
+            if (start.getNodeType() != RouteNode.NodeType.CONNECTOR
+                    || end.getNodeType() != RouteNode.NodeType.CONNECTOR
+                    || start.getBuilding() == null || end.getBuilding() == null) {
+                continue;
+            }
+            Map<Integer, RouteNode> startFloors =
+                    virtualNodesByBuilding.getOrDefault(start.getBuilding().getId(), Map.of());
+            Map<Integer, RouteNode> endFloors =
+                    virtualNodesByBuilding.getOrDefault(end.getBuilding().getId(), Map.of());
+            for (Integer floor : parseConnectionFloors(configured.getConnectionFloors())) {
+                RouteNode floorStart = startFloors.get(floor);
+                RouteNode floorEnd = endFloors.get(floor);
+                if (floorStart == null || floorEnd == null) continue;
+                RouteEdge edge = automaticEdge(
+                        syntheticEdgeId--, floorStart, floorEnd,
+                        RouteEdge.PathType.BUILDING_CONNECTION,
+                        configured.getDistanceMeters(), configured.getDurationSeconds());
+                edge.setBidirectional(configured.isBidirectional());
+                edge.setWheelchairAccessible(configured.isWheelchairAccessible());
+                addGraphEdge(edges, adjacency, edge);
+            }
+        }
+    }
+
+    private List<Integer> parseConnectionFloors(String value) {
+        if (value == null || value.isBlank()) return List.of();
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(part -> !part.isEmpty())
+                .map(Integer::parseInt)
+                .filter(floor -> floor > 0)
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     private RouteEdge automaticEdge(
@@ -518,12 +565,20 @@ public class GraphService {
         return switch (edge.getPathType()) {
             case STAIRS -> destination.getFloor() + "층으로 계단을 이용하세요.";
             case ELEVATOR -> destination.getFloor() + "층으로 엘리베이터를 이용하세요.";
-            case BUILDING_CONNECTION -> "건물 연결통로를 이용하세요.";
+            case BUILDING_CONNECTION -> buildingConnectionInstruction(source, destination);
             case CORRIDOR -> source.getName() + " → " + destination.getName();
             case COVERED_PATH -> "지붕이 있는 통로를 따라 이동하세요.";
             case ENTRANCE -> destination.getName() + "(으)로 들어가세요.";
             default -> destination.getName() + " 방향으로 이동하세요.";
         };
+    }
+    private String buildingConnectionInstruction(RouteNode source, RouteNode destination) {
+        if (source.getBuilding() == null || destination.getBuilding() == null) {
+            return "건물 연결통로를 이용하세요.";
+        }
+        return source.getBuilding().getName() + "에서 "
+                + destination.getBuilding().getName()
+                + " 방향 연결통로를 이용하세요.";
     }
     public static double haversine(double lat1, double lon1, double lat2, double lon2) {
         double p = Math.PI / 180, a = 0.5 - Math.cos((lat2-lat1)*p)/2
