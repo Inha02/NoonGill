@@ -21,6 +21,14 @@ public class DatabaseSchemaMigration implements CommandLineRunner {
                 """);
         jdbcTemplate.execute("""
                 ALTER TABLE route_nodes
+                ADD COLUMN IF NOT EXISTS virtual_node BOOLEAN NOT NULL DEFAULT FALSE
+                """);
+        jdbcTemplate.execute("""
+                ALTER TABLE route_edges
+                ADD COLUMN IF NOT EXISTS connection_floors VARCHAR(500) NOT NULL DEFAULT ''
+                """);
+        jdbcTemplate.execute("""
+                ALTER TABLE route_nodes
                 DROP CONSTRAINT IF EXISTS route_nodes_node_type_check
                 """);
         jdbcTemplate.execute("""

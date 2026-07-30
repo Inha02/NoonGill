@@ -50,6 +50,7 @@ type NaverMapProps = {
   selectedBuildingId?: number
   graphNodes?: Array<{ id: number; name: string; latitude: number; longitude: number }>
   graphEdges?: Array<{ startNodeId: number; endNodeId: number; indoor: boolean }>
+  compactMarkers?: boolean
   onMapClick?: (latitude: number, longitude: number) => void
   onPlaceClick?: (id: number) => void
   onBuildingClick?: (id: number) => void
@@ -70,7 +71,7 @@ function markerIcon(place: MapPlace, selected: boolean) {
         <b>${place.name}</b>
       </div>
     `,
-    anchor: { x: 18, y: 42 },
+    anchor: { x: 15, y: 36 },
   }
 }
 
@@ -84,6 +85,7 @@ function NaverMap({
   places, start, end, routePoints = EMPTY_ROUTE_POINTS,
   buildingPlaces = EMPTY_BUILDING_PLACES, selectedBuildingId,
   graphNodes = EMPTY_GRAPH_NODES, graphEdges = EMPTY_GRAPH_EDGES,
+  compactMarkers = false,
   onMapClick, onPlaceClick, onBuildingClick,
 }: NaverMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -121,7 +123,10 @@ function NaverMap({
         map,
         zIndex: 30,
         title: `${place.name} · ${place.detail}`,
-        icon: markerIcon(place, place.id === start.id || place.id === end.id),
+        icon: {
+          ...markerIcon(place, place.id === start.id || place.id === end.id),
+          anchor: compactMarkers ? { x: 11, y: 29 } : { x: 15, y: 36 },
+        },
       })
       overlays.push(marker)
       if (onPlaceClick) {
@@ -140,7 +145,7 @@ function NaverMap({
         title: `${building.name} · ${building.detail}`,
         icon: {
           content: `<div class="building-marker${selected ? ' selected' : ''}"><span>건</span><b>${escapeHtml(building.name)}</b></div>`,
-          anchor: { x: 18, y: 42 },
+          anchor: compactMarkers ? { x: 11, y: 29 } : { x: 15, y: 36 },
         },
       })
       overlays.push(marker)
@@ -203,7 +208,7 @@ function NaverMap({
     }
   }, [
     places, start, end, routePoints, buildingPlaces, selectedBuildingId,
-    graphNodes, graphEdges, onMapClick, onPlaceClick, onBuildingClick,
+    graphNodes, graphEdges, compactMarkers, onMapClick, onPlaceClick, onBuildingClick,
   ])
 
   return (

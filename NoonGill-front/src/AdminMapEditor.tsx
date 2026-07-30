@@ -16,6 +16,8 @@ export default function AdminMapEditor() {
   const [deletedBuildingIds, setDeletedBuildingIds] = useState<number[]>([])
   const [deletedNodeIds, setDeletedNodeIds] = useState<number[]>([])
   const [deletedEdgeIds, setDeletedEdgeIds] = useState<number[]>([])
+  const [edgeStartNodeId, setEdgeStartNodeId] = useState('')
+  const [edgeEndNodeId, setEdgeEndNodeId] = useState('')
   const [message, setMessage] = useState('지도의 노드를 선택하거나 새로 추가하세요.')
   const [saving, setSaving] = useState(false)
   useEffect(() => { selectedRef.current = selected }, [selected])
@@ -25,10 +27,14 @@ export default function AdminMapEditor() {
   useEffect(() => { dataRef.current = data }, [data])
 
   useEffect(() => { getMapData().then(setData).catch(() => setMessage('서버에서 지도 데이터를 불러오지 못했습니다.')) }, [])
-  const mapPlaces = useMemo(() => data.nodes.map(node => ({
+  const visibleNodes = useMemo(() => data.nodes.filter(node => !node.virtualNode), [data.nodes])
+  const visibleNodeIds = useMemo(() => new Set(visibleNodes.map(node => node.id)), [visibleNodes])
+  const visibleEdges = useMemo(() => data.edges.filter(edge =>
+    visibleNodeIds.has(edge.startNodeId) && visibleNodeIds.has(edge.endNodeId)), [data.edges, visibleNodeIds])
+  const mapPlaces = useMemo(() => visibleNodes.map(node => ({
     id: node.id, name: node.name, detail: node.floor ? `${node.floor}층` : '외부',
     latitude: node.latitude, longitude: node.longitude,
-  })), [data.nodes])
+  })), [visibleNodes])
   const buildingPlaces = useMemo(() => data.buildings.map(building => ({
     id: building.id, name: building.name, detail: building.detail,
     latitude: building.latitude, longitude: building.longitude,
@@ -50,11 +56,50 @@ export default function AdminMapEditor() {
     if (modeRef.current !== 'ADD_NODE') return
     const id = -Date.now()
     const node: MapNode = { id, name: '새 노드', latitude, longitude, floor: null, nodeType: 'OUTDOOR',
-      buildingId: null, indoorX: null, indoorY: null }
+      buildingId: null, indoorX: null, indoorY: null, virtualNode: false }
     setData(value => ({ ...value, nodes: [...value.nodes, node] }))
     setSelectedBuildingId(undefined)
     setSelectedEdgeId(undefined)
     setSelected([id]); setMessage('새 노드가 추가되었습니다. 오른쪽에서 속성을 수정하세요.')
+  }, [])
+
+  const createEdge = useCallback((startNodeId: number, endNodeId: number) => {
+    if (startNodeId === endNodeId) {
+      setMessage('같은 노드는 서로 연결할 수 없습니다.')
+      return false
+    }
+    const currentData = dataRef.current
+    const a = currentData.nodes.find(node => node.id === startNodeId)
+    const b = currentData.nodes.find(node => node.id === endNodeId)
+    if (!a || !b) {
+      setMessage('입력한 ID에 해당하는 노드를 찾을 수 없습니다.')
+      return false
+    }
+    const alreadyExists = currentData.edges.some(edge =>
+      (edge.startNodeId === startNodeId && edge.endNodeId === endNodeId)
+      || (edge.startNodeId === endNodeId && edge.endNodeId === startNodeId))
+    if (alreadyExists) {
+      selectedRef.current = []
+      setSelected([])
+      setMessage('두 노드 사이에 이미 Edge가 있습니다.')
+      return false
+    }
+    const distance = haversine(a.latitude, a.longitude, b.latitude, b.longitude)
+    const sameBuilding = a.buildingId != null && a.buildingId === b.buildingId
+    const edge: MapEdge = {
+      id: -Date.now(), startNodeId: a.id, endNodeId: b.id,
+      pathType: sameBuilding ? 'CORRIDOR' : 'OUTDOOR',
+      distanceMeters: Math.round(distance), durationSeconds: Math.round(distance / 1.3),
+      indoor: sameBuilding, rainExposure: sameBuilding ? 0 : 1,
+      stairCount: 0, wheelchairAccessible: true, bidirectional: true,
+      connectionFloors: [],
+    }
+    setData(current => ({ ...current, edges: [...current.edges, edge] }))
+    selectedRef.current = []
+    setSelected([])
+    setSelectedEdgeId(edge.id)
+    setMessage(`${a.name} ↔ ${b.name} Edge를 만들었습니다.${sameBuilding ? ' 같은 건물이므로 실내로 설정했습니다.' : ''}`)
+    return true
   }, [])
 
   const selectNode = useCallback((id: number) => {
@@ -82,40 +127,11 @@ export default function AdminMapEditor() {
         return
       }
       const startNodeId = currentSelection[0]
-      if (startNodeId === id) {
-        setMessage('같은 노드는 서로 연결할 수 없습니다.')
-        return
-      }
-      const currentData = dataRef.current
-      const alreadyExists = currentData.edges.some(edge =>
-        (edge.startNodeId === startNodeId && edge.endNodeId === id)
-        || (edge.startNodeId === id && edge.endNodeId === startNodeId))
-      if (alreadyExists) {
-        selectedRef.current = []
-        setSelected([])
-        setMessage('두 노드 사이에 이미 Edge가 있습니다.')
-        return
-      }
-      const a = currentData.nodes.find(node => node.id === startNodeId)!
-      const b = currentData.nodes.find(node => node.id === id)!
-      const distance = haversine(a.latitude, a.longitude, b.latitude, b.longitude)
-      const sameBuilding = a.buildingId != null && a.buildingId === b.buildingId
-      const edge: MapEdge = {
-        id: -Date.now(), startNodeId: a.id, endNodeId: b.id,
-        pathType: sameBuilding ? 'CORRIDOR' : 'OUTDOOR',
-        distanceMeters: Math.round(distance), durationSeconds: Math.round(distance / 1.3),
-        indoor: sameBuilding, rainExposure: sameBuilding ? 0 : 1,
-        stairCount: 0, wheelchairAccessible: true, bidirectional: true,
-      }
-      setData(current => ({ ...current, edges: [...current.edges, edge] }))
-      selectedRef.current = []
-      setSelected([])
-      setSelectedEdgeId(edge.id)
-      setMessage(`${a.name} ↔ ${b.name} Edge를 만들었습니다.${sameBuilding ? ' 같은 건물이므로 실내로 설정했습니다.' : ''}`)
+      createEdge(startNodeId, id)
       return
     }
     setSelected([id])
-  }, [])
+  }, [createEdge])
   const selectBuilding = useCallback((id: number) => {
     if (modeRef.current === 'ADD_EDGE') {
       setMessage('Edge를 만들 때는 원형 Node 마커를 선택하세요.')
@@ -129,6 +145,17 @@ export default function AdminMapEditor() {
   const selectedNode = data.nodes.find(node => node.id === selected[0])
   const selectedBuilding = data.buildings.find(building => building.id === selectedBuildingId)
   const selectedEdge = data.edges.find(edge => edge.id === selectedEdgeId)
+  const selectedEdgeStart = selectedEdge
+    ? data.nodes.find(node => node.id === selectedEdge.startNodeId) : undefined
+  const selectedEdgeEnd = selectedEdge
+    ? data.nodes.find(node => node.id === selectedEdge.endNodeId) : undefined
+  const isConnectorEdge = selectedEdgeStart?.nodeType === 'CONNECTOR'
+    && selectedEdgeEnd?.nodeType === 'CONNECTOR'
+  const connectionFloorLimit = isConnectorEdge
+    ? Math.min(
+      data.buildings.find(building => building.id === selectedEdgeStart?.buildingId)?.floorCount ?? 1,
+      data.buildings.find(building => building.id === selectedEdgeEnd?.buildingId)?.floorCount ?? 1,
+    ) : 0
   const updateNode = (patch: Partial<MapNode>) => {
     if (!selectedNode) return
     setData(value => ({ ...value, nodes: value.nodes.map(node => node.id === selectedNode.id ? { ...node, ...patch } : node) }))
@@ -207,11 +234,32 @@ export default function AdminMapEditor() {
     <main className="admin-workspace">
       <section className="admin-map"><NaverMap places={mapPlaces} start={fallback} end={fallback}
         buildingPlaces={buildingPlaces} selectedBuildingId={selectedBuildingId}
-        graphNodes={data.nodes} graphEdges={data.edges}
+        graphNodes={visibleNodes} graphEdges={visibleEdges}
+        compactMarkers
         onMapClick={addNode} onPlaceClick={selectNode}
         onBuildingClick={selectBuilding} /></section>
       <aside className="admin-panel">
         <p className="admin-message">{message}</p>
+        {mode === 'ADD_EDGE' && <div className="manual-edge-form">
+          <h3>Node ID로 Edge 추가</h3>
+          <div>
+            <label>시작 Node ID<input type="number" value={edgeStartNodeId}
+              onChange={e => setEdgeStartNodeId(e.target.value)} placeholder="예: 22"/></label>
+            <label>도착 Node ID<input type="number" value={edgeEndNodeId}
+              onChange={e => setEdgeEndNodeId(e.target.value)} placeholder="예: 56"/></label>
+          </div>
+          <button onClick={() => {
+            if (!edgeStartNodeId || !edgeEndNodeId) {
+              setMessage('시작 노드 ID와 도착 노드 ID를 모두 입력하세요.')
+              return
+            }
+            if (createEdge(Number(edgeStartNodeId), Number(edgeEndNodeId))) {
+              setEdgeStartNodeId('')
+              setEdgeEndNodeId('')
+            }
+          }}>Edge 추가</button>
+          <p className="field-help">지도에서 노드 두 개를 선택하는 기존 방식도 함께 사용할 수 있습니다.</p>
+        </div>}
         {selectedEdge ? <div className="property-form edge-property-form">
           <h3>Edge 속성</h3>
           <small>Node {selectedEdge.startNodeId} → Node {selectedEdge.endNodeId}</small>
@@ -243,6 +291,19 @@ export default function AdminMapEditor() {
             onChange={e => updateEdge({ wheelchairAccessible: e.target.checked })}/> 휠체어 통행 가능</label>
           <label className="check-field"><input type="checkbox" checked={selectedEdge.bidirectional}
             onChange={e => updateEdge({ bidirectional: e.target.checked })}/> 양방향 통행</label>
+          {isConnectorEdge && <fieldset className="connection-floor-field">
+            <legend>연결되는 층</legend>
+            <div>{Array.from({ length: connectionFloorLimit }, (_, index) => index + 1).map(floor =>
+              <label key={floor}><input type="checkbox"
+                checked={(selectedEdge.connectionFloors ?? []).includes(floor)}
+                onChange={e => {
+                  const floors = selectedEdge.connectionFloors ?? []
+                  updateEdge({ connectionFloors: e.target.checked
+                    ? [...floors, floor].sort((a, b) => a - b)
+                    : floors.filter(value => value !== floor) })
+                }}/>{floor}층</label>)}</div>
+            <small>선택한 각 층에서 두 건물의 연결통로를 이용할 수 있습니다.</small>
+          </fieldset>}
           <p className="field-help">같은 건물의 Node끼리 연결된 Edge는 저장할 때 자동으로 실내 처리됩니다.</p>
         </div> : selectedBuilding ? <div className="property-form">
           <h3>건물 속성</h3>
@@ -252,6 +313,15 @@ export default function AdminMapEditor() {
             onChange={e => updateBuilding({ detail: e.target.value })}/></label>
           <label>총 층수<input type="number" min="1" value={selectedBuilding.floorCount}
             onChange={e => updateBuilding({ floorCount: Math.max(1, Number(e.target.value) || 1) })}/></label>
+          <div className="virtual-node-list">
+            <b>층별 가상 노드 ID</b>
+            {data.nodes.filter(node => node.virtualNode && node.buildingId === selectedBuilding.id)
+              .sort((a, b) => (a.floor ?? 0) - (b.floor ?? 0))
+              .map(node => <span key={node.id}><em>{node.floor}층</em><code>{node.id}</code></span>)}
+            {!data.nodes.some(node => node.virtualNode && node.buildingId === selectedBuilding.id)
+              && <small>저장하고 게시하면 층별 가상 노드가 생성됩니다.</small>}
+            <p className="field-help">실제 DB Node ID이며 ADD_EDGE에 입력할 수 있습니다. 지도 마커로는 표시되지 않습니다.</p>
+          </div>
           <small>{selectedBuilding.latitude.toFixed(7)}, {selectedBuilding.longitude.toFixed(7)}</small>
         </div> : selectedNode ? <div className="property-form">
           <label>이름<input value={selectedNode.name} onChange={e => updateNode({ name: e.target.value })}/></label>
@@ -284,7 +354,7 @@ export default function AdminMapEditor() {
         <div className="edge-list">{data.edges.map(edge => <div
           className={selectedEdgeId === edge.id ? 'active' : ''} key={edge.id}
           onClick={() => { setSelectedEdgeId(edge.id); setSelected([]); setSelectedBuildingId(undefined) }}>
-          <span>{edge.startNodeId} → {edge.endNodeId}</span><b>{edge.pathType} · {Math.round(edge.distanceMeters)}m</b>
+          <span>{edge.startNodeId} → {edge.endNodeId}</span><b>{edge.pathType} · {Math.round(edge.distanceMeters)}m{edge.connectionFloors?.length ? ` · ${edge.connectionFloors.join(', ')}층` : ''}</b>
           <button onClick={event => {
             event.stopPropagation()
             setData(v => ({...v, edges: v.edges.filter(e => e.id !== edge.id)}))
