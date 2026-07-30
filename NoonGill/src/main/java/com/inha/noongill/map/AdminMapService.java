@@ -18,6 +18,7 @@ public class AdminMapService {
     @Transactional
     public void publish(MapChangesRequest request) {
         Map<Long, Building> resolvedBuildings = new HashMap<>();
+        Set<Building> savedBuildings = new HashSet<>();
         if (request.buildings() != null) {
             for (BuildingChange change : request.buildings()) {
                 Building building = change.id() != null && change.id() > 0
@@ -28,10 +29,13 @@ public class AdminMapService {
                 building.setLongitude(change.longitude());
                 building.setFloorCount(Math.max(1, change.floorCount()));
                 buildingRepository.save(building);
+                savedBuildings.add(building);
                 if (change.id() != null) resolvedBuildings.put(change.id(), building);
                 resolvedBuildings.put(building.getId(), building);
             }
         }
+        savedBuildings.forEach(this::syncVirtualFloorNodes);
+        nodeRepository.flush();
         if (request.deletedEdgeIds() != null) {
             request.deletedEdgeIds().forEach(id -> edgeRepository.findById(id).ifPresent(edge -> edge.setActive(false)));
         }
@@ -41,6 +45,7 @@ public class AdminMapService {
         Map<Long, RouteNode> resolvedNodes = new HashMap<>();
         if (request.nodes() != null) {
             for (NodeChange change : request.nodes()) {
+                if (change.virtualNode()) continue;
                 RouteNode node = change.id() != null && change.id() > 0
                         ? nodeRepository.findById(change.id()).orElseThrow() : new RouteNode();
                 node.setName(change.name());
@@ -52,6 +57,7 @@ public class AdminMapService {
                         : resolveBuilding(change.buildingId(), resolvedBuildings));
                 node.setIndoorX(change.indoorX());
                 node.setIndoorY(change.indoorY());
+                node.setVirtualNode(false);
                 node.setActive(true);
                 nodeRepository.save(node);
                 if (change.id() != null) resolvedNodes.put(change.id(), node);
@@ -99,11 +105,42 @@ public class AdminMapService {
         return building != null ? building : buildingRepository.findById(id).orElseThrow();
     }
 
+    private void syncVirtualFloorNodes(Building building) {
+        List<RouteNode> virtualNodes = nodeRepository.findByBuildingId(building.getId()).stream()
+                .filter(RouteNode::isVirtualNode)
+                .toList();
+        Map<Integer, RouteNode> byFloor = new HashMap<>();
+        virtualNodes.stream()
+                .filter(node -> node.getFloor() != null)
+                .forEach(node -> byFloor.put(node.getFloor(), node));
+
+        for (int floor = 1; floor <= building.getFloorCount(); floor++) {
+            RouteNode node = byFloor.getOrDefault(floor, new RouteNode());
+            node.setName(building.getName() + " " + floor + "층");
+            node.setLatitude(building.getLatitude());
+            node.setLongitude(building.getLongitude());
+            node.setFloor(floor);
+            node.setNodeType(RouteNode.NodeType.LOBBY);
+            node.setBuilding(building);
+            node.setIndoorX(null);
+            node.setIndoorY(null);
+            node.setVirtualNode(true);
+            node.setActive(true);
+            nodeRepository.save(node);
+        }
+        virtualNodes.stream()
+                .filter(node -> node.getFloor() == null || node.getFloor() > building.getFloorCount())
+                .forEach(node -> node.setActive(false));
+    }
+
     @Transactional
     public void deleteBuilding(long buildingId) {
         Building building = buildingRepository.findById(buildingId).orElseThrow();
         List<RouteNode> linkedNodes = nodeRepository.findByBuildingId(buildingId);
-        linkedNodes.forEach(node -> node.setBuilding(null));
+        linkedNodes.forEach(node -> {
+            if (node.isVirtualNode()) node.setActive(false);
+            node.setBuilding(null);
+        });
         nodeRepository.saveAllAndFlush(linkedNodes);
         buildingRepository.delete(building);
         buildingRepository.flush();

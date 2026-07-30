@@ -4,6 +4,7 @@ import type { Building } from './buildingApi'
 export type MapNode = {
   id: number; name: string; latitude: number; longitude: number; floor: number | null
   nodeType: string; buildingId: number | null; indoorX: number | null; indoorY: number | null
+  virtualNode: boolean
 }
 export type MapEdge = {
   id: number; startNodeId: number; endNodeId: number; pathType: string

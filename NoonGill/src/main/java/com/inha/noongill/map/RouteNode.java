@@ -22,6 +22,8 @@ public class RouteNode {
     private Building building;
     private Double indoorX;
     private Double indoorY;
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean virtualNode;
     private boolean active = true;
 
     public RouteNode(String name, double latitude, double longitude, Integer floor,

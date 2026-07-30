@@ -11,6 +11,34 @@ const modes: { id: RouteType; label: string; icon: string }[] = [
   { id: 'ACCESSIBLE', label: '계단 없는 길', icon: '◿' },
 ]
 
+const quickPlaceNames = ['1캠퍼스 정문', '2캠퍼스 정문', '중앙도서관', '명신관']
+
+function isLandmarkInstruction(instruction: string) {
+  return /정문|입구|후문|연결통로/.test(instruction)
+}
+
+function instructionContent(instruction: string, pathType: string) {
+  if (pathType === 'ELEVATOR' || pathType === 'STAIRS') {
+    return <span className="movement-text">{instruction}</span>
+  }
+  const connectionMatch = instruction.match(/^(.+)에서 (.+) 방향 연결통로를 이용하세요\.$/)
+  if (connectionMatch) {
+    return <><span className="place-name">{connectionMatch[1]}</span><span className="movement-text">에서</span><span className="place-name">{connectionMatch[2]}</span><span className="movement-text">방향</span><span className="connection-label">연결통로</span><span className="movement-text">를 이용하세요.</span></>
+  }
+  if (instruction.includes('연결통로')) {
+    const [before, after] = instruction.split('연결통로', 2)
+    return <><span className="movement-text">{before}</span><span className="connection-label">연결통로</span><span className="movement-text">{after}</span></>
+  }
+  const arrowParts = instruction.split(' → ')
+  if (arrowParts.length === 2) {
+    return <><span className="place-name">{arrowParts[0]}</span><span className="movement-text">→</span><span className="place-name">{arrowParts[1]}</span></>
+  }
+  const suffixes = [' 방향으로 이동하세요.', '(으)로 들어가세요.', '를 통해 들어가세요.']
+  const suffix = suffixes.find(value => instruction.endsWith(value))
+  if (!suffix) return <span className="movement-text">{instruction}</span>
+  return <><span className="place-name">{instruction.slice(0, -suffix.length)}</span><span className="movement-text">{suffix}</span></>
+}
+
 export default function App() {
   if (window.location.pathname === '/admin/map-editor') return <AdminMapEditor />
   return <RoutePage />
@@ -53,6 +81,9 @@ function RoutePage() {
   }, [])
   const startPlace = useMemo(() => places.find(p => p.id === start), [places, start])
   const endPlace = useMemo(() => places.find(p => p.id === end), [places, end])
+  const quickPlaces = useMemo(() => quickPlaceNames
+    .map(name => places.find(place => place.name === name))
+    .filter((place): place is Building => place !== undefined), [places])
   useEffect(() => {
     if (startPlace && startFloor > Math.max(1, startPlace.floorCount ?? 1)) setStartFloor(1)
   }, [startPlace, startFloor])
@@ -94,9 +125,10 @@ function RoutePage() {
         <aside className="result-card"><div className="result-header"><div><span className="result-badge">{modes.find(v=>v.id===mode)?.label}</span><h2>{startPlace.name} {startFloor}층 <span>→</span> {endPlace.name} {endFloor}층</h2></div></div>
           {error && <p className="route-error">{error}</p>}
           {route && <><div className="route-summary"><strong>약 {Math.max(1,Math.ceil(route.estimatedSeconds/60))}분</strong><span>{Math.round(route.totalDistanceMeters)}m</span><span>실내 {Math.round(route.indoorRatio*100)}%</span></div>
-            <ol className="segment-list">{route.segments.map((s,i)=><li key={s.edgeId}><i>{i+1}</i><div><strong>{s.instruction}</strong><small>{s.indoor?'실내':'실외'} · {s.pathType} · {Math.round(s.estimatedSeconds)}초</small></div></li>)}</ol></>}
+            <ol className="segment-list">{route.segments.map((s,i)=><li className={`${isLandmarkInstruction(s.instruction) ? 'landmark-step' : ''} ${s.pathType === 'ELEVATOR' || s.pathType === 'STAIRS' ? 'vertical-step' : ''}`} key={s.edgeId}><i>{i+1}</i><div className="segment-content"><strong>{instructionContent(s.instruction, s.pathType)}</strong><small>{s.indoor?'실내':'실외'} · {s.pathType} · {Math.round(s.estimatedSeconds)}초</small></div></li>)}</ol>
+            <p className="arrival-message">{endPlace.name} {endFloor}층에 도착했습니다.</p></>}
         </aside></section>
-      <section className="quick-places" id="places"><div><span className="eyebrow">QUICK ACCESS</span><h2>자주 찾는 장소</h2></div><div className="place-chips">{places.slice(1,5).map(p=><button onClick={()=>{setShowAllPins(true);setEnd(p.id);setEndFloor(1)}} key={p.id}><span>{p.name[0]}</span><b>{p.name}</b><small>{p.detail}</small></button>)}</div></section>
+      <section className="quick-places" id="places"><div><span className="eyebrow">QUICK ACCESS</span><h2>자주 찾는 장소</h2></div><div className="place-chips">{quickPlaces.map(p=><button onClick={()=>{setShowAllPins(true);setEnd(p.id);setEndFloor(1)}} key={p.id}><span>{p.name[0]}</span><b>{p.name}</b><small>{p.detail}</small></button>)}</div></section>
     </main><footer><strong>눈길</strong><span>네이버 지도는 배경과 경로 시각화에만 사용합니다.</span><small>실제 통행 가능 여부를 확인해 주세요.</small></footer>
   </div>
 }

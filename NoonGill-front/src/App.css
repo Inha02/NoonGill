@@ -127,16 +127,24 @@ button { cursor: pointer; }
 .result-header h2 { max-width: 250px; margin: 8px 0 0; font-size: 18px; line-height: 1.45; letter-spacing: -.04em; }
 .result-header h2 span { color: #a4aaba; font-weight: 400; }
 .result-badge { padding: 5px 8px; border-radius: 5px; color: var(--blue); background: var(--pale-blue); font-size: 10px; font-weight: 800; }
-.route-summary { margin: 22px 0 12px; padding: 17px; display: flex; align-items: baseline; gap: 12px; border-radius: 12px; background: #f7f8fb; }
+.route-summary { margin: 22px 0 20px; padding: 17px; display: flex; align-items: baseline; gap: 12px; border-radius: 12px; background: #f7f8fb; }
 .route-summary strong { color: var(--navy); font-size: 27px; letter-spacing: -.05em; }
 .route-summary span { color: #828ba1; font-size: 11px; }
-.segment-list { margin: 22px 0; padding: 0; list-style: none; }
+.segment-list { margin: 0; padding: 0; list-style: none; }
 .segment-list li { min-height: 58px; display: flex; gap: 12px; position: relative; }
+.segment-list li:last-child { min-height: 0; }
 .segment-list li:not(:last-child)::after { content: ''; position: absolute; left: 13px; top: 30px; bottom: 0; border-left: 1px dashed #c8cede; }
 .segment-list i { z-index: 1; flex: 0 0 auto; width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; color: var(--blue); background: var(--pale-blue); font-size: 10px; font-style: normal; font-weight: 800; }
-.segment-list div { display: flex; flex-direction: column; gap: 4px; }
-.segment-list strong { font-size: 11px; line-height: 1.4; }
+.segment-list .segment-content { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 5px; }
+.segment-list strong { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px; font-size: 11px; line-height: 1.4; }
+.segment-list .place-name { color: var(--navy); font-size: 14px; font-weight: 850; letter-spacing: -.025em; }
+.segment-list .connection-label { color: var(--navy); font-size: 14px; font-weight: 850; letter-spacing: -.025em; }
+.segment-list .movement-text { color: #8d95a7; font-size: 10px; font-weight: 500; }
 .segment-list small { color: #9ca3b5; font-size: 9px; }
+.segment-list .vertical-step strong { font-weight: 500; }
+.segment-list .vertical-step .movement-text { color: #7f8798; font-size: 10px; }
+.segment-list .vertical-step small { color: #adb3c0; }
+.arrival-message { margin: 20px 0 8px; padding-top: 14px; color: var(--navy); border-top: 1px solid var(--line); font-size: 13px; font-weight: 400; text-align: center; }
 .report-link { width: 100%; margin-top: 14px; color: #949cad; border: 0; background: transparent; font-size: 9px; }
 
 .quick-places { max-width: 1320px; margin: 3px auto 45px; padding: 0 4vw; display: flex; align-items: end; justify-content: space-between; gap: 30px; }
@@ -173,6 +181,18 @@ footer strong { color: var(--navy); font-size: 15px; } footer small { margin-lef
 .property-form .check-field { display: flex; align-items: center; grid-template-columns: auto 1fr; gap: 8px; color: var(--ink); }
 .property-form .check-field input { width: 15px; height: 15px; margin: 0; }
 .field-help { margin: 2px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.manual-edge-form { margin-top: 14px; padding: 12px; display: grid; gap: 9px; border: 1px solid var(--line); border-radius: 9px; background: #fafbfe; }
+.manual-edge-form h3 { margin: 0; }
+.manual-edge-form > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.manual-edge-form label { display: grid; gap: 4px; color: #707991; font-size: 9px; font-weight: 700; }
+.manual-edge-form input { min-width: 0; width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 7px; }
+.manual-edge-form > button { padding: 9px; border: 0; border-radius: 7px; color: white; background: var(--blue); font-size: 10px; font-weight: 800; }
+.virtual-node-list { display: grid; gap: 6px; padding: 10px; border-radius: 8px; background: #f6f7fa; }
+.virtual-node-list > b { color: var(--ink); font-size: 10px; }
+.virtual-node-list > span { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.virtual-node-list em { color: var(--muted); font-size: 9px; font-style: normal; }
+.virtual-node-list code { color: var(--navy); font-size: 9px; font-weight: 700; }
+.virtual-node-list small { line-height: 1.5; }
 .building-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .building-list > div { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr) auto;
   border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: white; }

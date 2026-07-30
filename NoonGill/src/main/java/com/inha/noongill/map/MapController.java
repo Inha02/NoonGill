@@ -25,6 +25,17 @@ public class MapController {
 
     @PostMapping("/routes/search")
     public List<RouteResponse> routes(@Valid @RequestBody RouteSearchRequest request) {
+        if (request.start().type() == LocationType.BUILDING
+                && request.destination().type() == LocationType.BUILDING) {
+            return request.routeTypes().stream()
+                    .map(type -> graphService.routeBetweenBuildingFloors(
+                            Objects.requireNonNull(request.start().buildingId()),
+                            request.start().floor(),
+                            Objects.requireNonNull(request.destination().buildingId()),
+                            request.destination().floor(),
+                            type))
+                    .toList();
+        }
         Set<Long> sources = resolve(request.start());
         Set<Long> destinations = resolve(request.destination());
         return request.routeTypes().stream().map(type -> graphService.route(sources, destinations, type)).toList();
@@ -54,7 +65,7 @@ public class MapController {
     private NodeResponse node(RouteNode value) {
         return new NodeResponse(value.getId(), value.getName(), value.getLatitude(), value.getLongitude(), value.getFloor(),
                 value.getNodeType(), value.getBuilding() == null ? null : value.getBuilding().getId(),
-                value.getIndoorX(), value.getIndoorY());
+                value.getIndoorX(), value.getIndoorY(), value.isVirtualNode());
     }
     private EdgeResponse edge(RouteEdge value) {
         return new EdgeResponse(value.getId(), value.getStartNode().getId(), value.getEndNode().getId(),
