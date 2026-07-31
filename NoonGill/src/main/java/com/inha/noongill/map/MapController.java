@@ -60,7 +60,8 @@ public class MapController {
     }
     private BuildingResponse building(Building value) {
         return new BuildingResponse(value.getId(), value.getName(), value.getDetail(),
-                value.getLatitude(), value.getLongitude(), value.getFloorCount());
+                value.getLatitude(), value.getLongitude(), value.getFloorCount(),
+                value.getBasementFloorCount());
     }
     private NodeResponse node(RouteNode value) {
         return new NodeResponse(value.getId(), value.getName(), value.getLatitude(), value.getLongitude(), value.getFloor(),

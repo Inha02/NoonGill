@@ -20,6 +20,10 @@ public class DatabaseSchemaMigration implements CommandLineRunner {
                 ADD COLUMN IF NOT EXISTS floor_count INTEGER NOT NULL DEFAULT 1
                 """);
         jdbcTemplate.execute("""
+                ALTER TABLE buildings
+                ADD COLUMN IF NOT EXISTS basement_floor_count INTEGER NOT NULL DEFAULT 0
+                """);
+        jdbcTemplate.execute("""
                 ALTER TABLE route_nodes
                 ADD COLUMN IF NOT EXISTS virtual_node BOOLEAN NOT NULL DEFAULT FALSE
                 """);

@@ -28,6 +28,7 @@ public class AdminMapService {
                 building.setLatitude(change.latitude());
                 building.setLongitude(change.longitude());
                 building.setFloorCount(Math.max(1, change.floorCount()));
+                building.setBasementFloorCount(Math.max(0, change.basementFloorCount()));
                 buildingRepository.save(building);
                 savedBuildings.add(building);
                 if (change.id() != null) resolvedBuildings.put(change.id(), building);
@@ -110,7 +111,7 @@ public class AdminMapService {
         if (floors == null) return "";
         return floors.stream()
                 .filter(Objects::nonNull)
-                .filter(floor -> floor > 0)
+                .filter(floor -> floor != 0)
                 .distinct()
                 .sorted()
                 .map(String::valueOf)
@@ -136,9 +137,16 @@ public class AdminMapService {
                 .filter(node -> node.getFloor() != null)
                 .forEach(node -> byFloor.put(node.getFloor(), node));
 
+        List<Integer> floors = new ArrayList<>();
+        for (int floor = building.getBasementFloorCount(); floor >= 1; floor--) {
+            floors.add(-floor);
+        }
         for (int floor = 1; floor <= building.getFloorCount(); floor++) {
+            floors.add(floor);
+        }
+        for (int floor : floors) {
             RouteNode node = byFloor.getOrDefault(floor, new RouteNode());
-            node.setName(building.getName() + " " + floor + "층");
+            node.setName(building.getName() + " " + floorLabel(floor));
             node.setLatitude(building.getLatitude());
             node.setLongitude(building.getLongitude());
             node.setFloor(floor);
@@ -151,8 +159,15 @@ public class AdminMapService {
             nodeRepository.save(node);
         }
         virtualNodes.stream()
-                .filter(node -> node.getFloor() == null || node.getFloor() > building.getFloorCount())
+                .filter(node -> node.getFloor() == null
+                        || node.getFloor() == 0
+                        || node.getFloor() > building.getFloorCount()
+                        || node.getFloor() < -building.getBasementFloorCount())
                 .forEach(node -> node.setActive(false));
+    }
+
+    private String floorLabel(int floor) {
+        return floor < 0 ? "B" + Math.abs(floor) : floor + "층";
     }
 
     @Transactional

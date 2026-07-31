@@ -13,6 +13,22 @@ const modes: { id: RouteType; label: string; icon: string }[] = [
 
 const quickPlaceNames = ['1캠퍼스 정문', '2캠퍼스 정문', '중앙도서관', '명신관']
 
+function buildingFloors(building: Building) {
+  const basements = Array.from(
+    { length: Math.max(0, building.basementFloorCount ?? 0) },
+    (_, index) => -(building.basementFloorCount ?? 0) + index,
+  )
+  const aboveGround = Array.from(
+    { length: Math.max(1, building.floorCount ?? 1) },
+    (_, index) => index + 1,
+  )
+  return [...basements, ...aboveGround]
+}
+
+function floorLabel(floor: number) {
+  return floor < 0 ? `B${Math.abs(floor)}` : `${floor}층`
+}
+
 function isLandmarkInstruction(instruction: string) {
   return /정문|입구|후문|연결통로/.test(instruction)
 }
@@ -85,10 +101,10 @@ function RoutePage() {
     .map(name => places.find(place => place.name === name))
     .filter((place): place is Building => place !== undefined), [places])
   useEffect(() => {
-    if (startPlace && startFloor > Math.max(1, startPlace.floorCount ?? 1)) setStartFloor(1)
+    if (startPlace && !buildingFloors(startPlace).includes(startFloor)) setStartFloor(1)
   }, [startPlace, startFloor])
   useEffect(() => {
-    if (endPlace && endFloor > Math.max(1, endPlace.floorCount ?? 1)) setEndFloor(1)
+    if (endPlace && !buildingFloors(endPlace).includes(endFloor)) setEndFloor(1)
   }, [endPlace, endFloor])
   const findRoute = async (hideOtherPins = false) => {
     if (!start || !end) return
@@ -107,11 +123,11 @@ function RoutePage() {
         <div className="route-controls"><div className="place-fields">
           <label><span className="dot start-dot"/><span><small>출발</small><span className="location-selects">
             <select aria-label="출발 건물" value={start} onChange={e=>{setStart(Number(e.target.value));setStartFloor(1)}}>{places.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select>
-            <select aria-label="출발 층" className="floor-select" value={startFloor} onChange={e=>setStartFloor(Number(e.target.value))}>{Array.from({length:Math.max(1,startPlace.floorCount??1)},(_,index)=><option value={index+1} key={index+1}>{index+1}층</option>)}</select>
+            <select aria-label="출발 층" className="floor-select" value={startFloor} onChange={e=>setStartFloor(Number(e.target.value))}>{buildingFloors(startPlace).map(floor=><option value={floor} key={floor}>{floorLabel(floor)}</option>)}</select>
           </span></span></label>
           <div className="field-line"/><label><span className="dot end-dot"/><span><small>도착</small><span className="location-selects">
             <select aria-label="도착 건물" value={end} onChange={e=>{setEnd(Number(e.target.value));setEndFloor(1)}}>{places.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select>
-            <select aria-label="도착 층" className="floor-select" value={endFloor} onChange={e=>setEndFloor(Number(e.target.value))}>{Array.from({length:Math.max(1,endPlace.floorCount??1)},(_,index)=><option value={index+1} key={index+1}>{index+1}층</option>)}</select>
+            <select aria-label="도착 층" className="floor-select" value={endFloor} onChange={e=>setEndFloor(Number(e.target.value))}>{buildingFloors(endPlace).map(floor=><option value={floor} key={floor}>{floorLabel(floor)}</option>)}</select>
           </span></span></label>
           <button className="swap-button" onClick={()=>{setStart(end);setStartFloor(endFloor);setEnd(start);setEndFloor(startFloor)}}>⇅</button></div>
           <div className="mode-fields">{modes.map(item=><button className={mode===item.id?'selected':''} onClick={()=>setMode(item.id)} key={item.id}><span>{item.icon}</span>{item.label}</button>)}</div>
@@ -122,11 +138,11 @@ function RoutePage() {
           places={showAllPins ? places : places.filter(place => place.id === start || place.id === end)}
           start={startPlace} end={endPlace} routePoints={route?.points}/>
           <div className="map-legend"><span><i className="indoor"/> 선택한 경로</span></div></div></div>
-        <aside className="result-card"><div className="result-header"><div><span className="result-badge">{modes.find(v=>v.id===mode)?.label}</span><h2>{startPlace.name} {startFloor}층 <span>→</span> {endPlace.name} {endFloor}층</h2></div></div>
+        <aside className="result-card"><div className="result-header"><div><span className="result-badge">{modes.find(v=>v.id===mode)?.label}</span><h2>{startPlace.name} {floorLabel(startFloor)} <span>→</span> {endPlace.name} {floorLabel(endFloor)}</h2></div></div>
           {error && <p className="route-error">{error}</p>}
           {route && <><div className="route-summary"><strong>약 {Math.max(1,Math.ceil(route.estimatedSeconds/60))}분</strong><span>{Math.round(route.totalDistanceMeters)}m</span><span>실내 {Math.round(route.indoorRatio*100)}%</span></div>
             <ol className="segment-list">{route.segments.map((s,i)=><li className={`${isLandmarkInstruction(s.instruction) ? 'landmark-step' : ''} ${s.pathType === 'ELEVATOR' || s.pathType === 'STAIRS' ? 'vertical-step' : ''}`} key={s.edgeId}><i>{i+1}</i><div className="segment-content"><strong>{instructionContent(s.instruction, s.pathType)}</strong><small>{s.indoor?'실내':'실외'} · {s.pathType} · {Math.round(s.estimatedSeconds)}초</small></div></li>)}</ol>
-            <p className="arrival-message">{endPlace.name} {endFloor}층에 도착했습니다.</p></>}
+            <p className="arrival-message">{endPlace.name} {floorLabel(endFloor)}에 도착했습니다.</p></>}
         </aside></section>
       <section className="quick-places" id="places"><div><span className="eyebrow">QUICK ACCESS</span><h2>자주 찾는 장소</h2></div><div className="place-chips">{quickPlaces.map(p=><button onClick={()=>{setShowAllPins(true);setEnd(p.id);setEndFloor(1)}} key={p.id}><span>{p.name[0]}</span><b>{p.name}</b><small>{p.detail}</small></button>)}</div></section>
     </main><footer><strong>눈길</strong><span>네이버 지도는 배경과 경로 시각화에만 사용합니다.</span><small>실제 통행 가능 여부를 확인해 주세요.</small></footer>
