@@ -53,6 +53,7 @@ type NaverMapProps = {
   compactMarkers?: boolean
   onMapClick?: (latitude: number, longitude: number) => void
   onPlaceClick?: (id: number) => void
+  onPlaceMove?: (id: number, latitude: number, longitude: number) => void
   onBuildingClick?: (id: number) => void
 }
 
@@ -86,7 +87,7 @@ function NaverMap({
   buildingPlaces = EMPTY_BUILDING_PLACES, selectedBuildingId,
   graphNodes = EMPTY_GRAPH_NODES, graphEdges = EMPTY_GRAPH_EDGES,
   compactMarkers = false,
-  onMapClick, onPlaceClick, onBuildingClick,
+  onMapClick, onPlaceClick, onPlaceMove, onBuildingClick,
 }: NaverMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [loadError, setLoadError] = useState(false)
@@ -122,6 +123,7 @@ function NaverMap({
         position,
         map,
         zIndex: 30,
+        draggable: Boolean(onPlaceMove),
         title: `${place.name} · ${place.detail}`,
         icon: {
           ...markerIcon(place, place.id === start.id || place.id === end.id),
@@ -131,6 +133,10 @@ function NaverMap({
       overlays.push(marker)
       if (onPlaceClick) {
         maps.Event.addListener(marker, 'click', () => onPlaceClick(place.id))
+      }
+      if (onPlaceMove) {
+        maps.Event.addListener(marker, 'dragend', event =>
+          onPlaceMove(place.id, event.coord.y, event.coord.x))
       }
     })
 
@@ -208,7 +214,8 @@ function NaverMap({
     }
   }, [
     places, start, end, routePoints, buildingPlaces, selectedBuildingId,
-    graphNodes, graphEdges, compactMarkers, onMapClick, onPlaceClick, onBuildingClick,
+    graphNodes, graphEdges, compactMarkers,
+    onMapClick, onPlaceClick, onPlaceMove, onBuildingClick,
   ])
 
   return (

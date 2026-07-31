@@ -45,7 +45,8 @@ export default function AdminMapEditor() {
     if (modeRef.current === 'ADD_BUILDING') {
       const id = -Date.now()
       setData(value => ({ ...value, buildings: [...value.buildings, {
-        id, name: '새 건물', detail: '건물 설명', latitude, longitude, floorCount: 1,
+        id, name: '새 건물', detail: '건물 설명', latitude, longitude,
+        floorCount: 1, basementFloorCount: 0,
       }] }))
       setSelectedBuildingId(id)
       setSelectedEdgeId(undefined)
@@ -141,6 +142,17 @@ export default function AdminMapEditor() {
     setSelectedEdgeId(undefined)
     setSelected([])
   }, [])
+  const moveNode = useCallback((id: number, latitude: number, longitude: number) => {
+    setData(current => ({
+      ...current,
+      nodes: current.nodes.map(node =>
+        node.id === id ? { ...node, latitude, longitude } : node),
+    }))
+    setSelectedBuildingId(undefined)
+    setSelectedEdgeId(undefined)
+    setSelected([id])
+    setMessage(`Node ${id}의 위치를 변경했습니다. 연결된 Edge는 그대로 유지됩니다.`)
+  }, [])
 
   const selectedNode = data.nodes.find(node => node.id === selected[0])
   const selectedBuilding = data.buildings.find(building => building.id === selectedBuildingId)
@@ -151,11 +163,19 @@ export default function AdminMapEditor() {
     ? data.nodes.find(node => node.id === selectedEdge.endNodeId) : undefined
   const isConnectorEdge = selectedEdgeStart?.nodeType === 'CONNECTOR'
     && selectedEdgeEnd?.nodeType === 'CONNECTOR'
-  const connectionFloorLimit = isConnectorEdge
-    ? Math.min(
-      data.buildings.find(building => building.id === selectedEdgeStart?.buildingId)?.floorCount ?? 1,
-      data.buildings.find(building => building.id === selectedEdgeEnd?.buildingId)?.floorCount ?? 1,
-    ) : 0
+  const connectionFloorOptions = (() => {
+    if (!isConnectorEdge) return []
+    const startBuilding = data.buildings.find(building => building.id === selectedEdgeStart?.buildingId)
+    const endBuilding = data.buildings.find(building => building.id === selectedEdgeEnd?.buildingId)
+    if (!startBuilding || !endBuilding) return []
+    const basementCount = Math.min(
+      startBuilding.basementFloorCount ?? 0, endBuilding.basementFloorCount ?? 0)
+    const floorCount = Math.min(startBuilding.floorCount, endBuilding.floorCount)
+    return [
+      ...Array.from({ length: basementCount }, (_, index) => -basementCount + index),
+      ...Array.from({ length: floorCount }, (_, index) => index + 1),
+    ]
+  })()
   const updateNode = (patch: Partial<MapNode>) => {
     if (!selectedNode) return
     setData(value => ({ ...value, nodes: value.nodes.map(node => node.id === selectedNode.id ? { ...node, ...patch } : node) }))
@@ -236,7 +256,7 @@ export default function AdminMapEditor() {
         buildingPlaces={buildingPlaces} selectedBuildingId={selectedBuildingId}
         graphNodes={visibleNodes} graphEdges={visibleEdges}
         compactMarkers
-        onMapClick={addNode} onPlaceClick={selectNode}
+        onMapClick={addNode} onPlaceClick={selectNode} onPlaceMove={moveNode}
         onBuildingClick={selectBuilding} /></section>
       <aside className="admin-panel">
         <p className="admin-message">{message}</p>
@@ -293,7 +313,7 @@ export default function AdminMapEditor() {
             onChange={e => updateEdge({ bidirectional: e.target.checked })}/> 양방향 통행</label>
           {isConnectorEdge && <fieldset className="connection-floor-field">
             <legend>연결되는 층</legend>
-            <div>{Array.from({ length: connectionFloorLimit }, (_, index) => index + 1).map(floor =>
+            <div>{connectionFloorOptions.map(floor =>
               <label key={floor}><input type="checkbox"
                 checked={(selectedEdge.connectionFloors ?? []).includes(floor)}
                 onChange={e => {
@@ -301,7 +321,7 @@ export default function AdminMapEditor() {
                   updateEdge({ connectionFloors: e.target.checked
                     ? [...floors, floor].sort((a, b) => a - b)
                     : floors.filter(value => value !== floor) })
-                }}/>{floor}층</label>)}</div>
+                }}/>{floor < 0 ? `B${Math.abs(floor)}` : `${floor}층`}</label>)}</div>
             <small>선택한 각 층에서 두 건물의 연결통로를 이용할 수 있습니다.</small>
           </fieldset>}
           <p className="field-help">같은 건물의 Node끼리 연결된 Edge는 저장할 때 자동으로 실내 처리됩니다.</p>
@@ -311,13 +331,15 @@ export default function AdminMapEditor() {
             onChange={e => updateBuilding({ name: e.target.value })}/></label>
           <label>설명<input value={selectedBuilding.detail}
             onChange={e => updateBuilding({ detail: e.target.value })}/></label>
-          <label>총 층수<input type="number" min="1" value={selectedBuilding.floorCount}
+          <label>지상 층수<input type="number" min="1" value={selectedBuilding.floorCount}
             onChange={e => updateBuilding({ floorCount: Math.max(1, Number(e.target.value) || 1) })}/></label>
+          <label>지하 층수<input type="number" min="0" value={selectedBuilding.basementFloorCount ?? 0}
+            onChange={e => updateBuilding({ basementFloorCount: Math.max(0, Number(e.target.value) || 0) })}/></label>
           <div className="virtual-node-list">
             <b>층별 가상 노드 ID</b>
             {data.nodes.filter(node => node.virtualNode && node.buildingId === selectedBuilding.id)
               .sort((a, b) => (a.floor ?? 0) - (b.floor ?? 0))
-              .map(node => <span key={node.id}><em>{node.floor}층</em><code>{node.id}</code></span>)}
+              .map(node => <span key={node.id}><em>{(node.floor ?? 1) < 0 ? `B${Math.abs(node.floor ?? 1)}` : `${node.floor}층`}</em><code>{node.id}</code></span>)}
             {!data.nodes.some(node => node.virtualNode && node.buildingId === selectedBuilding.id)
               && <small>저장하고 게시하면 층별 가상 노드가 생성됩니다.</small>}
             <p className="field-help">실제 DB Node ID이며 ADD_EDGE에 입력할 수 있습니다. 지도 마커로는 표시되지 않습니다.</p>
@@ -354,7 +376,7 @@ export default function AdminMapEditor() {
         <div className="edge-list">{data.edges.map(edge => <div
           className={selectedEdgeId === edge.id ? 'active' : ''} key={edge.id}
           onClick={() => { setSelectedEdgeId(edge.id); setSelected([]); setSelectedBuildingId(undefined) }}>
-          <span>{edge.startNodeId} → {edge.endNodeId}</span><b>{edge.pathType} · {Math.round(edge.distanceMeters)}m{edge.connectionFloors?.length ? ` · ${edge.connectionFloors.join(', ')}층` : ''}</b>
+          <span>{edge.startNodeId} → {edge.endNodeId}</span><b>{edge.pathType} · {Math.round(edge.distanceMeters)}m{edge.connectionFloors?.length ? ` · ${edge.connectionFloors.map(floor => floor < 0 ? `B${Math.abs(floor)}` : `${floor}층`).join(', ')}` : ''}</b>
           <button onClick={event => {
             event.stopPropagation()
             setData(v => ({...v, edges: v.edges.filter(e => e.id !== edge.id)}))

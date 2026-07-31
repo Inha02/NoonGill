@@ -69,7 +69,7 @@ public class GraphService {
             for (int i = 1; i < virtualFloors.size(); i++) {
                 RouteNode lower = virtualFloors.get(i - 1);
                 RouteNode upper = virtualFloors.get(i);
-                int floorDifference = Math.max(1, upper.getFloor() - lower.getFloor());
+                int floorDifference = Math.max(1, floorDifference(lower.getFloor(), upper.getFloor()));
                 RouteEdge edge = automaticEdge(
                         syntheticEdgeId--, lower, upper, RouteEdge.PathType.ELEVATOR,
                         floorDifference * 4.0, floorDifference * 20.0);
@@ -119,7 +119,7 @@ public class GraphService {
                 .map(String::trim)
                 .filter(part -> !part.isEmpty())
                 .map(Integer::parseInt)
-                .filter(floor -> floor > 0)
+                .filter(floor -> floor != 0)
                 .distinct()
                 .sorted()
                 .toList();
@@ -432,7 +432,11 @@ public class GraphService {
     private int floorDifference(Integer requestedFloor, Integer anchorFloor) {
         int requested = requestedFloor == null ? 1 : requestedFloor;
         int anchor = anchorFloor == null ? 1 : anchorFloor;
-        return Math.abs(requested - anchor);
+        return Math.abs(floorLevel(requested) - floorLevel(anchor));
+    }
+
+    private int floorLevel(int floor) {
+        return floor > 0 ? floor - 1 : floor;
     }
 
     private boolean hasConnectedEdge(Graph snapshot, long nodeId) {
@@ -485,7 +489,7 @@ public class GraphService {
 
         if (bestSource == null || bestDestination == null) return Optional.empty();
 
-        int floorDifference = Math.abs(bestSource.getFloor() - bestDestination.getFloor());
+        int floorDifference = floorDifference(bestSource.getFloor(), bestDestination.getFloor());
         double distanceMeters = bestHorizontalDistance + floorDifference * 4.0;
         double estimatedSeconds = Math.max(20, floorDifference * 20.0);
         long virtualEdgeId = -1_000_000_000L - bestSource.getId() * 100_000L - bestDestination.getId();
@@ -563,8 +567,8 @@ public class GraphService {
             }
         }
         return switch (edge.getPathType()) {
-            case STAIRS -> destination.getFloor() + "층으로 계단을 이용하세요.";
-            case ELEVATOR -> destination.getFloor() + "층으로 엘리베이터를 이용하세요.";
+            case STAIRS -> floorLabel(destination.getFloor()) + "으로 계단을 이용하세요.";
+            case ELEVATOR -> floorLabel(destination.getFloor()) + "으로 엘리베이터를 이용하세요.";
             case BUILDING_CONNECTION -> buildingConnectionInstruction(source, destination);
             case CORRIDOR -> source.getName() + " → " + destination.getName();
             case COVERED_PATH -> "지붕이 있는 통로를 따라 이동하세요.";
@@ -579,6 +583,10 @@ public class GraphService {
         return source.getBuilding().getName() + "에서 "
                 + destination.getBuilding().getName()
                 + " 방향 연결통로를 이용하세요.";
+    }
+    private String floorLabel(Integer floor) {
+        if (floor == null) return "해당 층";
+        return floor < 0 ? "B" + Math.abs(floor) : floor + "층";
     }
     public static double haversine(double lat1, double lon1, double lat2, double lon2) {
         double p = Math.PI / 180, a = 0.5 - Math.cos((lat2-lat1)*p)/2

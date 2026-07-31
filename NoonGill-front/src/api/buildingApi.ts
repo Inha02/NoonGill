@@ -7,6 +7,7 @@ export type Building = {
   latitude: number
   longitude: number
   floorCount: number
+  basementFloorCount: number
 }
 
 export async function getBuildings() {

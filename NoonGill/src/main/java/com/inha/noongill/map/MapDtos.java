@@ -10,7 +10,7 @@ public final class MapDtos {
     public enum LocationType { POINT, BUILDING, NODE }
 
     public record BuildingResponse(long id, String name, String detail, double latitude, double longitude,
-                                   int floorCount) {}
+                                   int floorCount, int basementFloorCount) {}
     public record NodeResponse(long id, String name, double latitude, double longitude, Integer floor,
                                RouteNode.NodeType nodeType, Long buildingId, Double indoorX, Double indoorY,
                                boolean virtualNode) {}
@@ -39,13 +39,14 @@ public final class MapDtos {
                              Integer floor, @NotNull RouteNode.NodeType nodeType, Long buildingId,
                              Double indoorX, Double indoorY, boolean virtualNode) {}
     public record BuildingChange(Long id, @NotBlank String name, String detail,
-                                 double latitude, double longitude, @Min(1) int floorCount) {}
+                                 double latitude, double longitude, @Min(1) int floorCount,
+                                 @PositiveOrZero int basementFloorCount) {}
     public record EdgeChange(Long id, @NotNull Long startNodeId, @NotNull Long endNodeId,
                              @NotNull RouteEdge.PathType pathType, @PositiveOrZero double distanceMeters,
                              @PositiveOrZero double durationSeconds, boolean indoor,
                              @DecimalMin("0.0") @DecimalMax("1.0") double rainExposure,
                              @PositiveOrZero int stairCount, boolean wheelchairAccessible,
-                             boolean bidirectional, List<@Positive Integer> connectionFloors) {}
+                             boolean bidirectional, List<@NotNull Integer> connectionFloors) {}
     public record MapChangesRequest(List<@Valid BuildingChange> buildings,
                                     List<@Valid NodeChange> nodes, List<@Valid EdgeChange> edges,
                                     List<Long> deletedBuildingIds, List<Long> deletedNodeIds,
