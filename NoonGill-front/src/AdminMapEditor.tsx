@@ -143,15 +143,31 @@ export default function AdminMapEditor() {
     setSelected([])
   }, [])
   const moveNode = useCallback((id: number, latitude: number, longitude: number) => {
-    setData(current => ({
-      ...current,
-      nodes: current.nodes.map(node =>
-        node.id === id ? { ...node, latitude, longitude } : node),
-    }))
+    setData(current => {
+      const nodes = current.nodes.map(node =>
+        node.id === id ? { ...node, latitude, longitude } : node)
+      const nodeById = new Map(nodes.map(node => [node.id, node]))
+      const edges = current.edges.map(edge => {
+        if (edge.startNodeId !== id && edge.endNodeId !== id) return edge
+        const startNode = nodeById.get(edge.startNodeId)
+        const endNode = nodeById.get(edge.endNodeId)
+        if (!startNode || !endNode) return edge
+        const distanceMeters = Math.round(haversine(
+          startNode.latitude, startNode.longitude,
+          endNode.latitude, endNode.longitude,
+        ))
+        return {
+          ...edge,
+          distanceMeters,
+          durationSeconds: Math.round(distanceMeters / 1.3),
+        }
+      })
+      return { ...current, nodes, edges }
+    })
     setSelectedBuildingId(undefined)
     setSelectedEdgeId(undefined)
     setSelected([id])
-    setMessage(`Node ${id}의 위치를 변경했습니다. 연결된 Edge는 그대로 유지됩니다.`)
+    setMessage(`Node ${id}의 위치와 연결된 Edge의 거리·예상 시간을 다시 계산했습니다.`)
   }, [])
 
   const selectedNode = data.nodes.find(node => node.id === selected[0])
